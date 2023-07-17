@@ -184,6 +184,7 @@ public class PageCache {
         }
         Page page = new Page(allowSize, ByteBuffer.allocate(allowSize).array(), pageNo, this);
         releaseForCache(page);
+        maxPageNo = pageNo;
         return page;
     }
 }

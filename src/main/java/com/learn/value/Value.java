@@ -56,8 +56,8 @@ public abstract class Value implements Comparable<Value> {
         } else if (o2.isNull()) {
             return 1;
         } else {
-            long v1 = (long)o1.getObject();
-            long v2 = (long)o2.getObject();
+            long v1 = Long.parseLong(o1.getObject().toString());
+            long v2 = Long.parseLong(o2.getObject().toString());
             if (v1 > 0 && v2 < 0) {
                 return 1;
             } else if (v2 > 0 && v1 < 0) {
@@ -120,7 +120,7 @@ public abstract class Value implements Comparable<Value> {
         };
     }
 
-    private static Value getValueByType(int type, ByteBuffer buffer, boolean isNull) {
+    public static Value getValueByType(int type, ByteBuffer buffer, boolean isNull) {
         return switch (type) {
             case Value.BYTES -> new ValueBytes(buffer, isNull);
             case Value.BOOLEAN -> new ValueBoolean(buffer, isNull);

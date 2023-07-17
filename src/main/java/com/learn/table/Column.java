@@ -53,6 +53,6 @@ public record Column(String name, int index, int type, boolean isNull, boolean i
         byte[] typeByte = ByteBuffer.allocate(Integer.BYTES).putInt(this.type).array();
         byte[] isNullByte = ByteBuffer.allocate(1).put(this.isNull ? (byte)1 : (byte)0).array();
         byte[] isPrimaryKeyByte = ByteBuffer.allocate(1).put(this.isPrimaryKey ? (byte)1: (byte)0).array();
-        return Bytes.concat(nameSizeByte, indexByte, typeByte, isNullByte, isPrimaryKeyByte);
+        return Bytes.concat(nameSizeByte, nameByte, indexByte, typeByte, isNullByte, isPrimaryKeyByte);
     }
 }

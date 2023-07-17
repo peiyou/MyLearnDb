@@ -154,8 +154,17 @@ public class Page {
         pageCache.release(this.pageNo);
     }
 
+    public void force() {
+        pageCache.releaseForCache(this);
+        this.dirty = false;
+    }
+
     public int freeSize() {
         return size - offset;
+    }
+
+    public int getOffset() {
+        return this.offset;
     }
 }
 

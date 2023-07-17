@@ -3,6 +3,8 @@ package com.learn.data;
 import com.google.common.primitives.Bytes;
 import com.learn.page.Page;
 
+import java.nio.ByteBuffer;
+
 /**
  * [valid][size][data]
  * 数据项，格式如上
@@ -14,24 +16,29 @@ import com.learn.page.Page;
 public class DataItem {
     private static final int VALID = 0;
     private static final int SIZE = VALID + 1;
-    private static final int DATA = SIZE + 4;
-
-    private byte[] raw;
+    public static final int DATA = SIZE + 4;
 
     /**
      * 在页中的偏移量
      */
     private final int offset;
 
+    private final int size;
+
     // 对于更新时，用来保存旧值的
     private byte[] oldRaw;
 
     private Page page;
 
-    public DataItem(byte[] raw, int offset, Page page) {
-        this.raw = raw;
+    private byte valid;
+
+    public DataItem(int offset, Page page) {
         this.offset = offset;
         this.page = page;
+        ByteBuffer buffer = ByteBuffer.wrap(page.getData());
+        buffer.position(offset);
+        this.valid = buffer.get();
+        this.size = buffer.getInt();
     }
 
     /**
@@ -54,31 +61,48 @@ public class DataItem {
      * @return
      */
     public void updateValid(boolean valid) {
-        oldRaw = raw;
-        raw[0] = valid ? (byte)1 : (byte) 0;
-        page.update(offset, raw);
+        setOldRaw();
+        byte[] newData = new byte[size];
+        System.arraycopy(oldRaw, 0, newData, 0, size);
+        newData[0] = valid ? (byte)1: (byte) 0;
+        this.valid = newData[0];
+        page.update(offset, newData);
     }
 
+    private void setOldRaw() {
+        oldRaw = new byte[size];
+        ByteBuffer buffer = ByteBuffer.wrap(page.getData());
+        buffer.position(offset);
+        byte validByte = buffer.get();
+        int size = buffer.getInt();
+        buffer.get(oldRaw);
+    }
     public static byte[] wrap(byte[] data) {
         byte[] valid = new byte[]{(byte)1};
-        byte[] size = new byte[4];
+        byte[] size = ByteBuffer.allocate(Integer.BYTES).putInt(data.length).array();
         return Bytes.concat(valid, size, data);
     }
 
     public boolean isValid() {
-        return raw[0] == (byte)1;
+        return this.valid == (byte)1;
     }
 
     public void release() throws Exception {
         page.release();
-        raw = null;
-        oldRaw = null;
-        page = null;
     }
 
+   public void force() {
+        page.force();
+   }
+
     public byte[] getData() {
-        byte[] data = new byte[raw.length - DATA];
-        System.arraycopy(this.raw, DATA, data, 0, data.length);
+        byte[] data = new byte[size];
+        System.arraycopy(page.getData(), offset + DATA, data, 0, data.length);
         return data;
+    }
+
+    public void update(byte[] data) {
+        setOldRaw();
+        page.update(offset + DATA, data);
     }
 }

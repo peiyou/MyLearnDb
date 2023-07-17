@@ -60,11 +60,13 @@ public class Bootstrap {
     }
 
     private void init(File file, List<Column> columns) {
+
+        // 构造table的格式
+        byte[] rootUidByte = ByteBuffer.allocate(Long.BYTES).putLong(0).array();
+        byte[] sizeByte = ByteBuffer.allocate(Integer.BYTES).putInt(columns.size()).array();
         // 格式化列
         byte[] columnBytes = initData(columns);
-        // 构造table的格式
-        byte[] rootUidByte = new byte[4];
-        byte[] sizeByte = ByteBuffer.allocate(Integer.BYTES).putInt(columns.size()).array();
+
         byte[] tableBytes = Bytes.concat(rootUidByte, sizeByte, columnBytes);
         int pageSize = ((tableBytes.length / Page.SIZE) + 1) * Page.SIZE;
         Page page = new Page(pageSize, new byte[pageSize], 1, null);

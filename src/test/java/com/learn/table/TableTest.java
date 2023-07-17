@@ -87,5 +87,8 @@ public class TableTest {
         for (Long uid: uidList) {
             System.out.println(uid);
         }
+
+        Row row = table.select(new ValueInt(9, false));
+        System.out.println(row);
     }
 }

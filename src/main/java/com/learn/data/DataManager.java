@@ -39,6 +39,17 @@ public class DataManager {
         int offset = page.write(wrap);
         long uid = (long) page.getPageNo();
         uid = uid << 32 | ((long) offset);
+        page.release();
+        pageIndex.add(page.getPageNo(), page.freeSize());
         return uid;
     }
+
+    public DataItem select(long uid) throws Exception {
+        int pageNo = (int) (uid >>> 32);
+        int offset = (int)(uid & ((1L<<32) - 1));
+        Page page = pageCache.get(pageNo);
+        DataItem item = new DataItem(offset, page);
+        return item;
+    }
+
 }

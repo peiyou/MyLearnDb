@@ -46,4 +46,13 @@ public class Row {
         }
         return result;
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for (Value value: columns) {
+            sb.append(value.getObject()).append(", ");
+        }
+        return sb.toString();
+    }
 }
