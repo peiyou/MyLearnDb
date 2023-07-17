@@ -231,6 +231,7 @@ public class BPlusTree {
 
     private Entry search(Long nodeUid, Entry entry) throws Exception {
         Node node = loadNode(nodeUid);
+        node.flush();
         if (node.isLeaf()) {
             int index = Collections.binarySearch(node.getKeys(), entry);
             if (index < 0) {
