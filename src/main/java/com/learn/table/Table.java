@@ -157,7 +157,6 @@ public class Table {
     }
 
     public long insert(Row row) throws Exception {
-        long uid = dataManager.insert(row.getBytes());
         Value key = null;
         for (Column column: columns) {
             if(column.isPrimaryKey()) {
@@ -167,6 +166,12 @@ public class Table {
         if (key == null || key.isNull()) {
             throw new RuntimeException("主键不能为空，或没有主键.");
         }
+        Row select = this.select(key);
+        if (select != null) {
+            // 主键冲突
+            throw new RuntimeException("插入重复的主键。");
+        }
+        long uid = dataManager.insert(row.getBytes());
         bPlusTree.add(key, uid);
         return uid;
     }
@@ -174,6 +179,10 @@ public class Table {
     public Row select(Value key) throws Exception {
         long uid = bPlusTree.search(key);
         DataItem dataItem = this.dataManager.select(uid);
+        if (dataItem == null) {
+            // 无数据
+            return null;
+        }
         dataItem.release();
         byte[] data = dataItem.getData();
         return new Row(ByteBuffer.wrap(data), columns);

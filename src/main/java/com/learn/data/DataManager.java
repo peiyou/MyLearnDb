@@ -49,6 +49,10 @@ public class DataManager {
         int offset = (int)(uid & ((1L<<32) - 1));
         Page page = pageCache.get(pageNo);
         DataItem item = new DataItem(offset, page);
+        // 验证数据
+        if (!item.isValid()) {
+            return null;
+        }
         return item;
     }
 

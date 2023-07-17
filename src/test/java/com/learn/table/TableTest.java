@@ -5,7 +5,6 @@ import com.learn.value.Value;
 import com.learn.value.ValueDouble;
 import com.learn.value.ValueInt;
 import com.learn.value.ValueLong;
-import com.learn.value.ValueShort;
 import com.learn.value.ValueString;
 import org.junit.Test;
 
