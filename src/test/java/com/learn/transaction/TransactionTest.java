@@ -7,7 +7,6 @@ import com.learn.table.Column;
 import com.learn.table.Row;
 import com.learn.table.Table;
 import com.learn.value.Value;
-import com.learn.value.ValueDouble;
 import com.learn.value.ValueInt;
 import com.learn.value.ValueLong;
 import com.learn.value.ValueString;
@@ -15,7 +14,6 @@ import org.junit.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 /**
