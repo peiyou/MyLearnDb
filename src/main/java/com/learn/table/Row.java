@@ -55,4 +55,8 @@ public class Row {
         }
         return sb.toString();
     }
+
+    public void setCol(int index, Value value) {
+        columns[index] = value;
+    }
 }

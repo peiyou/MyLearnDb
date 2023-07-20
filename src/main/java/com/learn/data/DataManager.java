@@ -1,5 +1,6 @@
 package com.learn.data;
 
+import com.learn.cache.AbstractCache;
 import com.learn.page.Page;
 import com.learn.page.PageCache;
 import com.learn.page.PageIndex;
@@ -11,7 +12,7 @@ import com.learn.page.PageInfo;
  * @className DataManager
  * @date 2023/7/15 16:56
  **/
-public class DataManager {
+public class DataManager extends AbstractCache<DataItem> {
 
     private PageIndex pageIndex;
 
@@ -44,16 +45,28 @@ public class DataManager {
         return uid;
     }
 
-    public DataItem select(long uid) throws Exception {
+
+    @Override
+    protected DataItem getForCache(long uid) throws Exception {
         int pageNo = (int) (uid >>> 32);
         int offset = (int)(uid & ((1L<<32) - 1));
         Page page = pageCache.get(pageNo);
         DataItem item = new DataItem(offset, page);
         // 验证数据
+        /*
         if (!item.isValid()) {
             return null;
         }
+        */
         return item;
     }
 
+    @Override
+    public void releaseForCache(DataItem obj) {
+        try {
+            obj.release();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

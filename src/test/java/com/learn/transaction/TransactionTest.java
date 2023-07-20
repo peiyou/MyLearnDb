@@ -1,10 +1,11 @@
-package com.learn.table;
+package com.learn.transaction;
 
 import com.google.common.primitives.Bytes;
 import com.learn.database.Database;
 import com.learn.database.DatabaseManager;
-import com.learn.transaction.Transaction;
-import com.learn.transaction.TransactionManager;
+import com.learn.table.Column;
+import com.learn.table.Row;
+import com.learn.table.Table;
 import com.learn.value.Value;
 import com.learn.value.ValueDouble;
 import com.learn.value.ValueInt;
@@ -20,11 +21,10 @@ import java.util.List;
 /**
  * @author peiyou
  * @version 1.0
- * @className TableTest
- * @date 2023/7/13 12:21
+ * @className TransactionTest
+ * @date 2023/7/20 16:46
  **/
-public class TableTest {
-
+public class TransactionTest {
 
     private DatabaseManager databaseManager;
 
@@ -35,7 +35,7 @@ public class TableTest {
     @Test
     public void createDb() throws Exception {
         init();
-        databaseManager.createDatabase("test");
+        databaseManager.createDatabase("test_transaction");
     }
 
     private Table createTable(Database database, String tableName) throws Exception {
@@ -43,18 +43,26 @@ public class TableTest {
         List<Column> columns = new ArrayList<>();
         columns.add(new Column("id", 0, Value.LONG, false, true));
         columns.add(new Column("name", 1, Value.STRING, true, false));
-        columns.add(new Column("age", 2, Value.INT, true, false));
-        columns.add(new Column("score", 3, Value.DOUBLE, true, false));
-        columns.add(new Column("createDate", 4, Value.LONG, true, false));
-        columns.add(new Column("createBy", 5, Value.LONG, false, false));
         return database.createTable(tableName, columns);
     }
 
+    /**
+     * 插入数据，但是不提交事务
+     * @author Peiyou
+     * @date 2023/7/20 16:48
+     * @return void
+     */
     @Test
-    public void insert() throws Exception {
-        // 初始化
+    public void insertButNotCommit() throws Exception {
+        /**
+         *
+         * @author Peiyou
+         * @date 2023/7/20 16:48
+         * @return void
+         */
+
         init();
-        String dbName = "test";
+        String dbName = "test_transaction";
         String tableName = "test";
         Database database = databaseManager.getDatabase(dbName);
         Table table = this.createTable(database, tableName);
@@ -62,22 +70,11 @@ public class TableTest {
         List<Column> columns = new ArrayList<>();
         columns.add(new Column("id", 0, Value.LONG, false, true));
         columns.add(new Column("name", 1, Value.STRING, true, false));
-        columns.add(new Column("age", 2, Value.INT, true, false));
-        columns.add(new Column("score", 3, Value.DOUBLE, true, false));
-        columns.add(new Column("createDate", 4, Value.LONG, true, false));
-        columns.add(new Column("createBy", 5, Value.LONG, false, false));
-
         List<Row> rowList = new ArrayList<>();
         for (int i = 0; i < 10; i ++) {
             Value id = new ValueLong(i + 1, false);
             Value name = new ValueString("张三" + i);
-            Value age = new ValueInt(18, false);
-            Value score = new ValueDouble(60 + i, false);
-            Value createDate = new ValueLong(new Date().getTime(), false);
-            Value createBy = new ValueLong(1 + 100, false);
-            byte[] rowBytes = Bytes.concat(id.getInputBytes(), name.getInputBytes(),
-                    age.getInputBytes(), score.getInputBytes(), createDate.getInputBytes(),
-                    createBy.getInputBytes());
+            byte[] rowBytes = Bytes.concat(id.getInputBytes(), name.getInputBytes());
             Row row = new Row(ByteBuffer.wrap(rowBytes), columns);
             rowList.add(row);
         }
@@ -89,16 +86,28 @@ public class TableTest {
             Long uid = table.insert(xid, row);
             uidList.add(uid);
         }
-        transactionManager.commit(xid);
 
-        for (Long uid: uidList) {
-            System.out.println(uid);
-        }
-
-        xid = transactionManager.begin(level);
-        Row row = table.select(xid, new ValueInt(9, false));
-        transactionManager.commit(xid);
-
+        // 开始一个新的事务，用新事务做查询
+        long newXid = transactionManager.begin(level);
+        Row row = table.select(newXid, new ValueInt(9, false));
         System.out.println(row);
+        transactionManager.commit(newXid);
+
+
+        // 提交第一个事务
+        transactionManager.commit(xid);
+        // 再开始一个新的事务
+        long xid3 = transactionManager.begin(level);
+        row = table.select(xid3, new ValueInt(9, false));
+        System.out.println(row);
+        transactionManager.commit(xid3);
+
+    }
+
+    @Test
+    public void test() {
+        System.out.println(197568495624L + "的页是："  + (197568495624L >>> 32));
+        System.out.println(206158430216L + "的页是："  + (206158430216L >>> 32));
+        System.out.println(201863463304L + "的页是："  + (201863463304L >>> 32));
     }
 }

@@ -4,9 +4,13 @@ import com.learn.btree.BPlusTree;
 import com.learn.btree.Node;
 import com.learn.data.DataItem;
 import com.learn.data.DataManager;
+import com.learn.database.Database;
 import com.learn.page.Page;
 import com.learn.page.PageCache;
+import com.learn.transaction.Transaction;
+import com.learn.transaction.TransactionManager;
 import com.learn.value.Value;
+import com.learn.version.VersionManager;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -34,6 +38,8 @@ public class Table {
     public static final String idb = ".idb";
     public static final String frm = ".frm";
 
+    private final String tableName;
+
     private RandomAccessFile idbFile;
 
     private PageCache pageCacheIdb;
@@ -53,7 +59,12 @@ public class Table {
 
     private BPlusTree bPlusTree;
 
-    public Table(String path, String name) throws Exception {
+    private VersionManager versionManager;
+
+    private TransactionManager transactionManager;
+
+    public Table(String path, String name, TransactionManager transactionManager) throws Exception {
+        this.tableName = name;
         File file = new File(path + File.separator + name + frm);
         if (!file.exists()) {
             throw new RuntimeException(name + "表不存在.");
@@ -94,6 +105,9 @@ public class Table {
 
         this.loadTableInfo();
         this.bPlusTree = new BPlusTree(this.dataManager, this.pageCacheIdb, this.rootIndexUid);
+        this.transactionManager = transactionManager;
+        this.versionManager = new VersionManager(this.dataManager, this.transactionManager);
+        transactionManager.addVersionManager(versionManager);
     }
 
     /**
@@ -109,7 +123,7 @@ public class Table {
         int pageOffset = buffer.getInt();
         this.rootIndexUid = buffer.getLong();
         if (rootIndexUid > 0) {
-            DataItem dataItem = dataManager.select(rootIndexUid);
+            DataItem dataItem = dataManager.get(rootIndexUid);
             this.rootIndexUid = ByteBuffer.wrap(dataItem.getData()).getLong();
         }
         this.loadColumns(buffer);
@@ -140,9 +154,9 @@ public class Table {
         }
     }
 
-    public static Table create(String path, String name, List<Column> columns) throws Exception {
+    public static Table create(String path, String name, List<Column> columns, TransactionManager transactionManager) throws Exception {
         Bootstrap bootstrap = new Bootstrap(path, name, columns);
-        Table table = new Table(path, name);
+        Table table = new Table(path, name, transactionManager);
         // 往idb的第一页中写入 root 占位
         Page page = table.pageCacheIdb.newPage(Page.SIZE);
         Node node = BPlusTree.newNode(table.pageCacheIdb, table.dataManager);
@@ -156,7 +170,7 @@ public class Table {
         return table;
     }
 
-    public long insert(Row row) throws Exception {
+    public long insert(long xid, Row row) throws Exception {
         Value key = null;
         for (Column column: columns) {
             if(column.isPrimaryKey()) {
@@ -166,25 +180,76 @@ public class Table {
         if (key == null || key.isNull()) {
             throw new RuntimeException("主键不能为空，或没有主键.");
         }
-        Row select = this.select(key);
+        Row select = this.select(xid, key);
         if (select != null) {
             // 主键冲突
             throw new RuntimeException("插入重复的主键。");
         }
-        long uid = dataManager.insert(row.getBytes());
+        long uid = versionManager.insert(xid, row.getBytes());
         bPlusTree.add(key, uid);
         return uid;
     }
 
-    public Row select(Value key) throws Exception {
-        long uid = bPlusTree.search(key);
-        DataItem dataItem = this.dataManager.select(uid);
-        if (dataItem == null) {
-            // 无数据
+    public Row select(long xid, Value key) throws Exception {
+        Long uid = bPlusTree.search(key);
+        if (uid == null) {
             return null;
         }
-        dataItem.release();
-        byte[] data = dataItem.getData();
-        return new Row(ByteBuffer.wrap(data), columns);
+        byte[] data = versionManager.read(xid, uid);
+        if (data == null) {
+            return null;
+        } else {
+            return new Row(ByteBuffer.wrap(data), columns);
+        }
+    }
+
+    public boolean delete(long xid, Value key) throws Exception {
+        long uid = bPlusTree.search(key);
+        return versionManager.delete(xid, uid);
+    }
+
+
+    public boolean update(long xid, Row row) throws Exception {
+        Value key = null;
+        int indexKey = -1;
+        for (Column column: this.columns) {
+            if (column.isPrimaryKey()) {
+                indexKey = column.index();
+                break;
+            }
+        }
+        if (indexKey == -1) {
+            // 异常
+            throw new RuntimeException("不存在主键.");
+        }
+        key = row.get(indexKey);
+        long uid = bPlusTree.search(key);
+        byte[] data = versionManager.read(xid, uid);
+        Row old = null;
+        if (data != null){
+            old = new Row(ByteBuffer.wrap(data), columns);
+        }
+
+        if (old == null) {
+            return false;
+        }
+        this.delete(xid, key);
+
+        for (int i = 0; i < this.columns.size(); i++) {
+            if (row.get(i) != null) {
+                old.setCol(i, row.get(i));
+            }
+        }
+        long newUid = this.insert(xid, old);
+        Transaction transaction = versionManager.getActiveTransaction().get(xid);
+        transaction.updateUid(uid, newUid);
+        bPlusTree.add(key, newUid);
+        return true;
+    }
+
+    public boolean dropTable(Database database) {
+        new File(database.getPath() + File.separator + tableName + Table.frm).delete();
+        new File(database.getPath() + File.separator + tableName + Table.idb).delete();
+        return true;
     }
 }

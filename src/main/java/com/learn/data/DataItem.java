@@ -4,6 +4,9 @@ import com.google.common.primitives.Bytes;
 import com.learn.page.Page;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * [valid][size][data]
@@ -32,6 +35,9 @@ public class DataItem {
 
     private byte valid;
 
+    private Lock rLock;
+    private Lock wLock;
+
     public DataItem(int offset, Page page) {
         this.offset = offset;
         this.page = page;
@@ -39,6 +45,9 @@ public class DataItem {
         buffer.position(offset);
         this.valid = buffer.get();
         this.size = buffer.getInt();
+        ReadWriteLock lock = new ReentrantReadWriteLock();
+        rLock = lock.readLock();
+        wLock = lock.writeLock();
     }
 
     /**
@@ -104,5 +113,13 @@ public class DataItem {
     public void update(byte[] data) {
         setOldRaw();
         page.update(offset + DATA, data);
+    }
+
+    public Lock getReadLock() {
+        return rLock;
+    }
+
+    public Lock getWriteLock() {
+        return wLock;
     }
 }

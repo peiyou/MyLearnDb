@@ -151,7 +151,7 @@ public class Page {
     }
 
     public void release() throws Exception {
-        pageCache.release(this.pageNo);
+        pageCache.release((long)this.pageNo);
     }
 
     public void force() {

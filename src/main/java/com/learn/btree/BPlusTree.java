@@ -209,7 +209,8 @@ public class BPlusTree {
         return key;
     }
 
-    public long search(Value key) throws Exception {
+    public Long search(Value key) throws Exception {
+        if (root == null) return null;
         Entry result = null;
         Entry entry = new Entry(key, 0);
         int index = Collections.binarySearch(root.getKeys(), entry);
@@ -224,7 +225,7 @@ public class BPlusTree {
             }
         }
         if (result == null) {
-            return 0;
+            return null;
         }
         return result.getValue();
     }
@@ -248,7 +249,7 @@ public class BPlusTree {
     }
 
     public Node loadNode(long uid) throws Exception {
-        DataItem dataItem = dataManager.select(uid);
+        DataItem dataItem = dataManager.get(uid);
         return new Node(dataItem, uid);
     }
 
@@ -257,7 +258,7 @@ public class BPlusTree {
         int offset = page.write(DataItem.wrap(Node.initNodeData()));
         pageCache.releaseForCache(page);
         long uid = ((long)page.getPageNo()) << 32 | ((long)offset);
-        DataItem dataItem = dataManager.select(uid);
+        DataItem dataItem = dataManager.get(uid);
         return new Node(dataItem, uid);
     }
 
